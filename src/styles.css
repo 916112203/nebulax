@@ -1,0 +1,61 @@
+html,
+body,
+#app {
+	margin: 0;
+	min-height: 100%;
+	height: 100%;
+}
+body {
+	font-family:
+		"Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+#app {
+	height: 100vh;
+}
+body,
+button,
+input,
+select,
+textarea {
+	font: inherit;
+}
+.map-container {
+	width: 100%;
+	height: 100%;
+	position: relative;
+}
+.el-container {
+	background: transparent;
+}
+.panel-card {
+	min-height: 220px;
+}
+.el-card__body {
+	padding: 16px;
+}
+.side-panel {
+	height: calc(100vh - 24px);
+	overflow-y: auto;
+	padding-bottom: 24px;
+}
+.chart-box {
+	min-height: 260px;
+}
+.summary-grid {
+	display: grid;
+	gap: 12px;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.map-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 12px;
+}
+.info-card {
+	margin-bottom: 16px;
+}
+.highlight-button {
+	margin-top: 10px;
+}

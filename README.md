@@ -1,74 +1,71 @@
-# 🚀 NebulaX Studio
+# SmartPipe GIS
 
-> 探索数字宇宙 · 创造无限可能
+智慧城市地下管网管理平台（WebGIS），结合 Vue3、OpenLayers、ECharts 与 Element Plus，面向 GitHub Pages 免费部署。
 
-一个充满未来感和赛博朋克风格的个人作品集网站，融合了丰富的视觉特效与现代化的交互设计。
+## 🚀 项目亮点
 
-## ✨ 特性
+- 管线、检查井、泵站图层管理
+- 属性查询与条件筛选
+- 缓冲区空间查询
+- 管线类型与状态统计
+- 巡检路线分析
+- GeoJSON 导入/导出
+- GitHub Pages 部署支持
 
-### 🎨 视觉特效
-- **粒子背景系统** - 鼠标吸引交互的 Canvas 粒子网络
-- **动态渐变文字** - 三色渐变流动效果
-- **毛玻璃卡片** - backdrop-filter 实现的高级玻璃态质感
-- **变形背景光斑** - CSS 动画驱动的模糊光球
-- **故障艺术效果** - 悬停触发的 Glitch 文字动画
-- **3D 翻折卡片** - CSS 3D Transform 实现的项目展示
-- **涟漪按钮** - 点击触发的波纹扩散动画
+## 技术栈
 
-### 🖱️ 交互体验
-- **自定义光标** - 赛博朋克风格的跟随光标
-- **打字机效果** - 首页动态轮播文字
-- **数字滚动动画** - 统计数据缓入计数
-- **滚动视差** - 鼠标移动驱动的背景光斑位移
-- **渐现动画** - Intersection Observer 驱动的滚动入场
-- **暗黑/明亮模式** - localStorage 持久化的主题切换
-- **加载动画** - 环形旋转加载屏
+- Vue 3
+- Vite
+- TypeScript
+- OpenLayers
+- ECharts
+- Element Plus
+- GeoJSON
 
-### 📱 响应式设计
-- 完整的移动端适配
-- 自适应网格布局
-- 触摸友好的交互元素
-- 移动端折叠导航菜单
-
-## 🛠️ 技术栈
-
-- HTML5
-- CSS3 (Grid, Flexbox, Animations, Custom Properties)
-- Vanilla JavaScript (ES6+)
-- Canvas API
-- Intersection Observer API
-
-## 🚀 部署
-
-### GitHub Pages
-
-1. 将此仓库推送到 GitHub
-2. 进入仓库 Settings → Pages
-3. Source 选择 `main` 分支，根目录 `/ (root)`
-4. 点击 Save，等待部署完成
-
-### 本地运行
+## 本地启动
 
 ```bash
-# 直接使用任意 HTTP 服务器
-npx serve .
-# 或
-python -m http.server 8000
+npm install
+npm run dev
 ```
 
-## 📂 项目结构
+## GitHub Pages 部署
+
+项目已配置 `vite` 构建输出到 `docs/` 目录，直接将仓库 `main` 分支的 `docs/` 目录作为 Pages 发布源即可。
+
+```bash
+npm run build
+```
+
+## 项目结构
 
 ```
-webtest/
-├── index.html    # 主页面（包含全部 CSS/JS）
-└── README.md     # 项目说明
+webTest/
+├── docs/               # Vite build 输出目录
+├── public/
+├── src/
+│   ├── App.vue
+│   ├── data/sampleData.ts
+│   ├── main.ts
+│   └── styles.css
+├── index.html
+├── package.json
+├── tsconfig.json
+├── tsconfig.node.json
+└── vite.config.ts
 ```
 
-## 🎯 设计理念
+## 简历描述建议
 
-代码即是艺术。每一个像素、每一行动画、每一次交互都在讲述一个故事。
-我们相信数字体验应该既有技术深度，又有视觉温度。
+**项目名称**：智慧城市地下管网管理平台（SmartPipe GIS）
 
----
+**职责描述**：
 
-Built with ❤ and ☕ | © 2026 NebulaX Studio
+- 基于 Vue3 + OpenLayers 构建地下管网可视化平台
+- 实现管线、检查井、泵站图层管理与显隐控制
+- 实现管线属性查询、条件筛选和 500m 缓冲区空间查询
+- 使用 ECharts 构建管线类型与状态统计分析
+- 支持 GeoJSON 数据导入导出，具备数据工程能力
+- 配置 GitHub Pages 部署，实现静态网站发布
+
+**技术栈**：Vue3、TypeScript、OpenLayers、ECharts、Element Plus、GeoJSON、GitHub Pages
