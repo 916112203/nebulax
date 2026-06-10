@@ -7,7 +7,7 @@
 		>
 			<div>
 				<h2>SmartPipe GIS</h2>
-				<p>智慧城市地下管网管理平台 · GitHub Pages 可部署</p>
+				<p>智慧城市地下管网管理平台 · 天地图</p>
 			</div>
 			<el-button type="primary" size="small" @click="exportGeoJSON"
 				>导出管线 GeoJSON</el-button
@@ -15,6 +15,15 @@
 		</el-header>
 		<el-container>
 			<el-aside width="320px" class="side-panel">
+				<!-- 底图切换 -->
+				<el-card class="info-card" shadow="always">
+					<div style="margin-bottom: 8px; font-weight: 500">底图切换</div>
+					<el-radio-group v-model="baseMap" size="small" @change="switchBaseMap">
+						<el-radio-button value="vector">矢量地图</el-radio-button>
+						<el-radio-button value="satellite">卫星影像</el-radio-button>
+					</el-radio-group>
+				</el-card>
+
 				<el-card class="info-card" shadow="always">
 					<div
 						style="
@@ -66,6 +75,16 @@
 								style="width: 100%"
 							/>
 						</el-form-item>
+						<el-form-item label="管线类型">
+							<el-select v-model="filterForm.pipeType" placeholder="全部类型">
+								<el-option label="全部" value="all" />
+								<el-option label="污水管" value="污水管" />
+								<el-option label="雨水管" value="雨水管" />
+								<el-option label="给水管" value="给水管" />
+								<el-option label="燃气管" value="燃气管" />
+								<el-option label="热力管" value="热力管" />
+							</el-select>
+						</el-form-item>
 						<el-form-item label="状态筛选">
 							<el-select v-model="filterForm.status" placeholder="选择状态">
 								<el-option label="全部" value="all" />
@@ -103,6 +122,15 @@
 						<p v-if="selectedProperties.depth">
 							<strong>埋深：</strong>{{ selectedProperties.depth }} m
 						</p>
+						<p v-if="selectedProperties.material">
+							<strong>材质：</strong>{{ selectedProperties.material }}
+						</p>
+						<p v-if="selectedProperties.installYear">
+							<strong>敷设年份：</strong>{{ selectedProperties.installYear }}
+						</p>
+						<p v-if="selectedProperties.capacity">
+							<strong>容量：</strong>{{ selectedProperties.capacity }}
+						</p>
 						<p v-if="selectedProperties.status">
 							<strong>状态：</strong
 							>{{ statusLabels[selectedProperties.status] }}
@@ -117,7 +145,7 @@
 						>
 					</div>
 					<div v-else>
-						<p>请点击管线、检查井或泵站查看属性。</p>
+						<p>请点击地图上的管线、检查井或泵站查看属性。</p>
 					</div>
 				</el-card>
 
@@ -133,8 +161,8 @@
 						<span>数据编辑</span>
 					</div>
 					<el-form label-position="top" label-width="100px" :model="editForm">
-						<el-form-item label="新增检查井 名称">
-							<el-input v-model="editForm.name" placeholder="例如 检查井C" />
+						<el-form-item label="新增设施名称">
+							<el-input v-model="editForm.name" placeholder="例如 检查井-D01" />
 						</el-form-item>
 						<el-form-item label="类型">
 							<el-select v-model="editForm.type" placeholder="选择类型">
@@ -146,7 +174,7 @@
 							<el-input-number
 								v-model="editForm.lon"
 								:min="116.39"
-								:max="116.41"
+								:max="116.42"
 								:step="0.0001"
 								style="width: 100%"
 							/>
@@ -181,7 +209,7 @@
 					>
 						<span>GeoJSON 导入/导出</span>
 					</div>
-					<input type="file" accept="application/json" @change="onUpload" />
+					<input type="file" accept="application/json,.geojson" @change="onUpload" />
 					<p style="margin-top: 10px; font-size: 12px; color: #606266">
 						请上传 GeoJSON 格式文件，系统会将符合管线属性的数据导入平台。
 					</p>
@@ -238,7 +266,7 @@ import Map from "ol/Map";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
-import { OSM } from "ol/source";
+import XYZ from "ol/source/XYZ";
 import VectorSource from "ol/source/Vector";
 import GeoJSON from "ol/format/GeoJSON";
 import { Style, Stroke, Fill, Circle as CircleStyle, Text } from "ol/style";
@@ -255,7 +283,15 @@ import {
 	inspectionRoute,
 	layerDefinitions,
 	statusLabels,
+	pipelineColors,
 } from "./data/sampleData";
+
+/* ---- 天地图密钥 ---- */
+const TK = "ce9373011a39697f989e5da52c53970e";
+
+/* ---- 天地图 XYZ 瓦片 URL 生成 ---- */
+const tiandituUrl = (layer: string) =>
+	`https://t{0-7}.tianditu.gov.cn/${layer}_w/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layer}&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&tk=${TK}`;
 
 interface FeatureProperties {
 	id?: string;
@@ -265,6 +301,12 @@ interface FeatureProperties {
 	depth?: number;
 	status?: string;
 	length?: number;
+	material?: string;
+	installYear?: number;
+	capacity?: string;
+	power?: string;
+	area?: number;
+	floors?: number;
 }
 
 export default defineComponent({
@@ -272,7 +314,13 @@ export default defineComponent({
 		const map = ref<Map>();
 		const selectedProperties = ref<FeatureProperties | null>(null);
 		const layerStates = ref(layerDefinitions.map((item) => ({ ...item })));
-		const filterForm = reactive({ diameterMin: 0, depthMin: 0, status: "all" });
+		const baseMap = ref<string>("vector");
+		const filterForm = reactive({
+			diameterMin: 0,
+			depthMin: 0,
+			pipeType: "all",
+			status: "all",
+		});
 		const editForm = reactive({
 			name: "",
 			type: "检查井",
@@ -291,32 +339,27 @@ export default defineComponent({
 		const statusCount = reactive({ normal: 0, maintenance: 0, fault: 0 });
 		const routeSummary = reactive({ distance: 0, duration: 0 });
 
+		/* ---- 天地图底图层引用 ---- */
+		let vecTileLayer: TileLayer<XYZ>;
+		let cvaTileLayer: TileLayer<XYZ>;
+		let imgTileLayer: TileLayer<XYZ>;
+		let ciaTileLayer: TileLayer<XYZ>;
+
 		const getPipelineStyle = (feature: Feature) => {
 			const props = feature.getProperties() as FeatureProperties;
-			const typeColor =
-				props.type === "污水管"
-					? "#ff7f50"
-					: props.type === "雨水管"
-						? "#40a9ff"
-						: "#73d13d";
+			const typeColor = pipelineColors[props.type || ""] || "#faad14";
 			const status = props.status || "normal";
-			const statusColor =
-				status === "fault"
-					? "#f5222d"
-					: status === "maintenance"
-						? "#faad14"
-						: "#52c41a";
 			return new Style({
 				stroke: new Stroke({
 					color: status === "fault" ? "#f5222d" : typeColor,
-					width: 6,
+					width: status === "fault" ? 8 : 6,
 				}),
 				text: new Text({
 					text: props.id || "",
-					font: "12px Microsoft YaHei",
+					font: "11px Microsoft YaHei",
 					fill: new Fill({ color: "#ffffff" }),
 					stroke: new Stroke({ color: "#000000", width: 2 }),
-					offsetY: -14,
+					offsetY: -16,
 				}),
 			});
 		};
@@ -337,7 +380,7 @@ export default defineComponent({
 				}),
 				text: new Text({
 					text: type === "泵站" ? "P" : "W",
-					font: "12px Microsoft YaHei",
+					font: "bold 11px Microsoft YaHei",
 					fill: new Fill({ color: "#fff" }),
 					offsetY: -18,
 				}),
@@ -349,6 +392,7 @@ export default defineComponent({
 			fill: new Fill({ color: "rgba(255, 99, 71, 0.12)" }),
 		});
 
+		/* ---- 加载 GeoJSON 数据 ---- */
 		const loadSource = () => {
 			const geojson = new GeoJSON();
 			buildingSource.addFeatures(
@@ -392,6 +436,15 @@ export default defineComponent({
 				);
 		};
 
+		/* ---- 底图切换 ---- */
+		const switchBaseMap = (val: string) => {
+			const isVector = val === "vector";
+			vecTileLayer.setVisible(isVector);
+			cvaTileLayer.setVisible(isVector);
+			imgTileLayer.setVisible(!isVector);
+			ciaTileLayer.setVisible(!isVector);
+		};
+
 		const resetLayers = () => {
 			layerStates.value = layerDefinitions.map((item) => ({ ...item }));
 			layerStates.value.forEach((item) =>
@@ -412,6 +465,7 @@ export default defineComponent({
 		const resetFilter = () => {
 			filterForm.diameterMin = 0;
 			filterForm.depthMin = 0;
+			filterForm.pipeType = "all";
 			filterForm.status = "all";
 			applyFilter();
 		};
@@ -427,9 +481,11 @@ export default defineComponent({
 					props.diameter >= filterForm.diameterMin;
 				const passDepth =
 					props.depth === undefined || props.depth >= filterForm.depthMin;
+				const passType =
+					filterForm.pipeType === "all" || props.type === filterForm.pipeType;
 				const passStatus =
 					filterForm.status === "all" || props.status === filterForm.status;
-				return passDiameter && passDepth && passStatus;
+				return passDiameter && passDepth && passType && passStatus;
 			});
 			pipelineSource.clear();
 			pipelineSource.addFeatures(filtered);
@@ -618,66 +674,88 @@ export default defineComponent({
 			const pipelines = pipelineSource
 				.getFeatures()
 				.map((feature) => feature.getProperties() as FeatureProperties);
-			const typeCount = { 污水管: 0, 雨水管: 0, 给水管: 0 };
+
+			/* 管线类型统计（动态） */
+			const typeCount: Record<string, number> = {};
 			pipelines.forEach((item) => {
-				if (item.type) typeCount[item.type] = (typeCount[item.type] || 0) + 1;
+				if (item.type) {
+					typeCount[item.type] = (typeCount[item.type] || 0) + 1;
+				}
 			});
-			const option1 = {
+			const pieData = Object.entries(typeCount).map(([name, value]) => ({
+				name,
+				value,
+			}));
+			const pieColors = pieData.map(
+				(d) => pipelineColors[d.name] || "#faad14",
+			);
+			typeChartInstance.value?.setOption({
 				tooltip: { trigger: "item" },
-				legend: { bottom: "0" },
+				legend: { bottom: "0", textStyle: { fontSize: 11 } },
+				color: pieColors,
 				series: [
 					{
 						name: "管线类型",
 						type: "pie",
 						radius: ["40%", "65%"],
-						label: { formatter: "{b}: {d}%" },
-						data: Object.entries(typeCount).map(([name, value]) => ({
-							name,
-							value,
-						})),
+						label: { formatter: "{b}\n{d}%" },
+						data: pieData,
 					},
 				],
-			};
-			typeChartInstance.value?.setOption(option1);
-
-			const statusCountChart = {
-				normal: 0,
-				maintenance: 0,
-				fault: 0,
-			};
-			pipelines.forEach((item) => {
-				if (item.status)
-					statusCountChart[item.status as "normal" | "maintenance" | "fault"]++;
 			});
-			const option2 = {
+
+			/* 管线状态统计 */
+			const sc: Record<string, number> = { normal: 0, maintenance: 0, fault: 0 };
+			pipelines.forEach((item) => {
+				if (item.status) sc[item.status] = (sc[item.status] || 0) + 1;
+			});
+			statusChartInstance.value?.setOption({
 				tooltip: { trigger: "axis" },
 				xAxis: { type: "category", data: ["正常", "维修中", "故障"] },
 				yAxis: { type: "value" },
 				series: [
 					{
-						data: [
-							statusCountChart.normal,
-							statusCountChart.maintenance,
-							statusCountChart.fault,
-						],
+						data: [sc.normal, sc.maintenance, sc.fault],
 						type: "bar",
-						itemStyle: { color: "#1890ff" },
+						itemStyle: { color: "#1890ff", borderRadius: [4, 4, 0, 0] },
+						label: { show: true, position: "top" },
 					},
 				],
-			};
-			statusChartInstance.value?.setOption(option2);
+			});
 		};
 
 		onMounted(() => {
 			loadSource();
+
+			/* ---- 天地图图层 ---- */
+			vecTileLayer = new TileLayer({
+				source: new XYZ({ url: tiandituUrl("vec") }),
+				visible: true,
+				properties: { id: "tdt-vec" },
+			});
+			cvaTileLayer = new TileLayer({
+				source: new XYZ({ url: tiandituUrl("cva") }),
+				visible: true,
+				properties: { id: "tdt-cva" },
+			});
+			imgTileLayer = new TileLayer({
+				source: new XYZ({ url: tiandituUrl("img") }),
+				visible: false,
+				properties: { id: "tdt-img" },
+			});
+			ciaTileLayer = new TileLayer({
+				source: new XYZ({ url: tiandituUrl("cia") }),
+				visible: false,
+				properties: { id: "tdt-cia" },
+			});
+
 			const mapObj = new Map({
 				target: "map",
 				layers: [
-					new TileLayer({
-						source: new OSM(),
-						visible: true,
-						properties: { id: "base" },
-					}),
+					vecTileLayer,
+					cvaTileLayer,
+					imgTileLayer,
+					ciaTileLayer,
 					new VectorLayer({
 						source: buildingSource,
 						style: new Style({
@@ -698,7 +776,7 @@ export default defineComponent({
 					}),
 					new VectorLayer({ source: routeSource, properties: { id: "route" } }),
 				],
-				view: new View({ center: fromLonLat([116.3978, 39.9073]), zoom: 16 }),
+				view: new View({ center: fromLonLat([116.398, 39.9075]), zoom: 16 }),
 			});
 			mapObj.on("click", onMapClick);
 			map.value = mapObj;
@@ -724,6 +802,7 @@ export default defineComponent({
 
 		return {
 			layerStates,
+			baseMap,
 			filterForm,
 			editForm,
 			selectedProperties,
@@ -731,6 +810,7 @@ export default defineComponent({
 			statusCount,
 			inspectionRoute,
 			routeSummary,
+			switchBaseMap,
 			resetLayers,
 			syncLayerVisibility,
 			resetFilter,
@@ -751,17 +831,5 @@ export default defineComponent({
 	border-radius: 12px;
 	overflow: hidden;
 	box-shadow: 0 18px 48px rgba(0, 0, 0, 0.16);
-}
-.el-header {
-	background: #f5f7fa;
-}
-.el-header h2 {
-	margin: 0;
-	font-size: 18px;
-}
-.el-header p {
-	margin: 0;
-	color: #606266;
-	font-size: 13px;
 }
 </style>
