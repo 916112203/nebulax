@@ -1,5 +1,5 @@
 <template>
-	<el-container style="height: 100%">
+	<el-container style="height: 100vh; overflow: hidden">
 		<el-header
 			height="60px"
 			class="map-header"
@@ -217,7 +217,7 @@
 			</el-aside>
 
 			<el-container>
-				<el-main style="padding: 12px; height: calc(100vh - 60px)">
+				<el-main style="padding: 12px; height: calc(100vh - 60px); overflow-y: auto">
 					<div class="map-container" id="map"></div>
 					<el-row :gutter="16" style="margin-top: 16px">
 						<el-col :span="12">
@@ -827,7 +827,7 @@ export default defineComponent({
 <style scoped>
 #map {
 	width: 100%;
-	height: 520px;
+	height: 460px;
 	border-radius: 12px;
 	overflow: hidden;
 	box-shadow: 0 18px 48px rgba(0, 0, 0, 0.16);
