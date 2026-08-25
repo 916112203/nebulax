@@ -4,9 +4,11 @@
 		<div class="map-canvas">
 			<div id="map" ref="mapEl" class="sp-map-container" />
 
-			<!-- 模式徽标 -->
+			<!-- 实时通道状态 -->
 			<div class="sp-map-mode-badge">
-				<el-tag v-if="appStore.state.mode === 'demo'" size="small" type="warning" effect="dark">演示模式 · 数据为模拟</el-tag>
+				<el-tag :type="appStore.state.wsOnline ? 'success' : 'warning'" size="small" effect="dark">
+					{{ appStore.state.wsOnline ? "实时通道已连接" : "实时通道连接中…" }}
+				</el-tag>
 			</div>
 
 			<!-- 搜索 -->

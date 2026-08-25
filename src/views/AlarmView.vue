@@ -106,7 +106,7 @@
 import { computed, defineComponent, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { apiAlarms, onRealtimeEvent } from "../api";
+import { apiAlarms } from "../api";
 import { authStore } from "../store/auth";
 import { appStore } from "../store/app";
 import { ALARM_LEVEL_LABELS, ALARM_STATUS_LABELS } from "../types";
@@ -126,7 +126,6 @@ export default defineComponent({
 		const reportVisible = ref(false);
 		const submitting = ref(false);
 		const reportForm = reactive({ type: "井盖位移", level: "minor", title: "", description: "" });
-		let unsub: (() => void) | null = null;
 
 		const levelTagType = (l: string) => (l === "critical" ? "danger" : l === "major" ? "warning" : l === "minor" ? "primary" : "info");
 		const levelLabel = (l: string) => ALARM_LEVEL_LABELS[l] || l;
@@ -184,13 +183,17 @@ export default defineComponent({
 		};
 		const locate = (row: Alarm) => router.push({ path: "/map", query: { locate: row.source_id!, layer: row.source_type } });
 
+		const onAlarmEvent = () => load();
 		onMounted(() => {
 			load();
-			unsub = onRealtimeEvent((payload: any) => {
-				if (payload.type === "alarm" || payload.type === "alarm-update") load();
-			});
+			// 实时告警事件（WebSocket 推送）触发列表刷新
+			window.addEventListener("sp-alarm", onAlarmEvent);
+			window.addEventListener("sp-alarm-update", onAlarmEvent);
 		});
-		onBeforeUnmount(() => unsub?.());
+		onBeforeUnmount(() => {
+			window.removeEventListener("sp-alarm", onAlarmEvent);
+			window.removeEventListener("sp-alarm-update", onAlarmEvent);
+		});
 
 		return {
 			list, total, page, pageSize, loading, filter, alarmTypes, reportVisible, submitting, reportForm,

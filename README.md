@@ -1,6 +1,6 @@
 # 🛰️ SmartPipe GIS 智慧城市地下管网管理平台
 
-> 一个**可运行、可部署**的 WebGIS 全栈项目：前端 Vue3 + OpenLayers + ECharts，后端 Node.js + Express + SQLite + WebSocket。模拟真实管网普查数据与业务场景，支持**虚拟机全栈部署**与 **GitHub Pages 纯前端演示**两种形态。
+> 一个**可运行、可部署**的 WebGIS 全栈项目：前端 Vue3 + OpenLayers + ECharts，后端 Node.js + Express + SQLite + WebSocket。模拟真实管网普查数据与业务场景。**前端强依赖后端**——后端服务不可用时前端直接拦截提示，确保数据完整性与业务一致性。
 
 [![技术栈](https://img.shields.io/badge/Vue-3.4-42b883)](https://vuejs.org)
 [![OpenLayers](https://img.shields.io/badge/OpenLayers-10-1F6B75)](https://openlayers.org)
@@ -41,7 +41,7 @@
 ```
 ┌────────────────────────── 前端（Vue3 + OpenLayers + ECharts + Element Plus）──────────────┐
 │ 登录 / 综合大屏 / 一张图 / 告警中心 / 巡检管理 / 工单管理 / 管网分析 / 用户管理              │
-│  API 双模式：在线模式（REST+WS）⇄ 演示模式（浏览器内置引擎，GitHub Pages 零后端）          │
+│  启动前置校验：探测 /api/overview/health，后端不可用 → 拦截错误页（不进入应用）            │
 └──────────────┬───────────────────────────────────────────────────────────────┘
                │ REST + JWT            WebSocket（遥测/告警推送）
 ┌──────────────▼───────────────────────────────────────────────────────────────┐
@@ -52,8 +52,8 @@
 ```
 
 **核心设计**：
-- **数据同源**：`scripts/generate-mock-data.mjs` 用固定种子生成确定性模拟数据，同时输出到后端种子目录与前端演示模式，保证两种形态数据一致；
-- **API 双模式**：前端启动时探测 `/api/overview/health`——探测成功走在线模式（VM 全栈部署），失败自动回退演示模式（GitHub Pages），同一套界面、同一套 API 契约；
+- **前端强依赖后端**：应用启动前探测后端健康检查，不可用时显示明确错误页并支持重试，杜绝"无声降级"造成的数据不一致；
+- **确定性模拟数据**：`scripts/generate-mock-data.mjs` 用固定种子生成可重复的模拟普查数据（管线/井/泵站/建筑/告警/工单/巡检），后端首次启动自动入库；
 - **真实拓扑**：管线-井-管线拓扑网络（道路交叉口共享井），支撑连通性追踪与爆管关阀分析等经典管网 GIS 功能。
 
 ## 🚀 快速开始
@@ -76,7 +76,7 @@ npm run dev
 ```
 
 > 注意：后端与前端需分别在**两个终端**中运行（都是常驻进程）。
-> 若 8080 未启动，前端会自动回退为演示模式（浏览器内置数据），不影响浏览。
+> 前端启动时强制探测后端：后端未启动时页面显示"无法启动"错误页，需先启动后端。
 
 **演示账号**：`admin/admin123`（管理员）· `zhangwei/zhang123`（调度员）· `lina/lina123`（巡检员）· `wangfang/wang123`（只读）
 
@@ -90,33 +90,35 @@ npm run dev
 | Docker | `docker compose -f deploy/docker-compose.yml up -d --build` | 单容器全栈，数据卷持久化 |
 | 手动分步 | 见部署文档 | nginx 反代 + systemd 守护，生产可控性最强 |
 
-## 🌐 GitHub Pages（纯前端演示版）
+## 🌐 GitHub Pages（需配合后端）
 
-无需后端，构建演示模式即可：
+本项目前端强依赖后端，GitHub Pages 静态托管仅作为前端资源分发，**必须搭配可访问的后端服务**：
+
+1. 后端部署在任意可公网访问的服务器（VM/Docker，见上节），并开启 CORS（默认已开启）；
+2. 构建前端时指定后端地址：
 
 ```bash
-npm install && npm run gen:data && npm run build:demo
+VITE_API_BASE=https://your-server:8080/api npm run build
 ```
 
-将 `docs/` 目录作为 GitHub Pages 发布源。演示模式下浏览器内置了与后端**数据同源、逻辑同构**的引擎：登录鉴权、要素编辑、告警处置、工单流转、空间分析全部可用，遥测与异常告警由本地模拟器实时生成。
+3. 将 `docs/` 目录作为 GitHub Pages 发布源。
 
 ## 📁 项目结构
 
 ```
 webTest/
-├── src/                     # 前端源码
-│   ├── api/                 # API 层：http 封装 / 演示模式引擎 / 统一门面
+├── src/                     # 前端源码（纯后端模式，启动前置健康检查）
+│   ├── api/                 # API 层：http 封装 / 统一服务接口
 │   ├── store/               # 状态管理（认证 / 应用实时状态）
 │   ├── views/               # 页面：登录/大屏/一张图/告警/巡检/工单/分析/用户
-│   ├── components/map/      # 地图组件：要素编辑抽屉 / 分析结果面板
-│   └── data/mock/           # 演示模式数据（与后端种子同源）
+│   └── components/map/      # 地图组件：要素编辑抽屉 / 分析结果面板
 ├── server/                  # 后端服务（Node + Express + sql.js）
 │   ├── src/                 # 入口 / 数据库 / 认证 / 空间分析 / 遥测模拟器 / 路由
 │   └── data/                # 种子数据 + SQLite 落盘文件
-├── scripts/                 # 模拟数据生成器（固定种子，前后端共用）
+├── scripts/                 # 模拟数据生成器（固定种子）/ e2e 测试 / 静态服务器
 ├── deploy/                  # Dockerfile / compose / nginx / systemd / 部署脚本 / 部署文档
 ├── design/                  # 方案设计文档 / API 文档 / 演示指南
-└── docs/                    # Vite 构建产物（GitHub Pages 发布源）
+└── docs/                    # Vite 构建产物（静态部署源）
 ```
 
 ## 📚 文档
@@ -136,7 +138,7 @@ webTest/
 - 实现经典管网 GIS 空间分析：上下游连通追踪、爆管关阀隔离方案、管线纵剖面、缓冲区查询
 - 设计确定性模拟数据生成器，产出 45 条管线/753 座井的真实拓扑管网，前后端数据同源
 - 搭建实时遥测模拟器：31 个传感器 3s 级推送、异常注入与告警自动生成，打通"监测-告警-工单-处置"业务闭环
-- 交付 Docker/Nginx/systemd 三种虚拟机部署方案与完整部署文档；GitHub Pages 演示版零后端运行
+- 前端强依赖后端架构：启动前置健康检查与错误拦截，交付 Docker/Nginx/systemd 三种部署方案与完整部署文档
 
 **技术栈**：Vue3、TypeScript、OpenLayers、ECharts、Element Plus、Node.js、Express、SQLite、WebSocket、JWT、Docker、Nginx
 

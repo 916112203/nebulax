@@ -175,17 +175,18 @@ sudo systemctl start smartpipe-api
 **Q5：如何更换端口？**
 修改 `PORT` 环境变量与 nginx 反代配置中的 `proxy_pass` 端口，保持一致即可。
 
-## 八、GitHub Pages（纯前端演示版）
+## 八、GitHub Pages（需配合后端）
 
-GitHub 仓库本身即支持零后端部署——前端内置了与后端**数据同源、逻辑同构**的
-演示模式引擎，构建后即可作为纯静态站点运行：
+本项目前端强依赖后端，GitHub Pages 静态托管仅作为前端资源分发，
+**必须搭配可访问的后端服务**（后端 CORS 默认已开启）：
 
 ```bash
 npm install
 npm run gen:data
-npm run build:demo    # VITE_API_BASE 置空 → 纯演示模式
+VITE_API_BASE=https://<后端地址>:8080/api npm run build
 ```
 
-将构建产物 `docs/` 目录作为 GitHub Pages 发布源即可。
-在线体验：演示模式支持登录、一张图、告警、巡检、工单、空间分析等全部功能，
-遥测数据与异常告警由浏览器本地模拟器实时生成。
+将构建产物 `docs/` 目录作为 GitHub Pages 发布源。
+
+> 前端启动时会向后端发起健康检查，后端不可用则显示错误拦截页
+> （不会以空数据或降级模式运行）。

@@ -1,149 +1,112 @@
 /**
- * 统一 API 门面：在线模式（后端 REST + WebSocket）与演示模式（浏览器内存引擎）
+ * 统一 API 服务（纯后端模式）
  * ============================================================
- * 模式判定：启动时探测 {API_BASE}/overview/health
- *  - 探测成功 → online（虚拟机全栈部署）
- *  - 探测失败 / API_BASE 为空 → demo（GitHub Pages 纯前端，零后端依赖）
+ * 前端强依赖后端服务（REST + WebSocket）：
+ * 后端不可用时应用启动即拦截并显示错误页，不再回退任何本地模式。
  */
-import { http, probeHealth, connectWS } from "./http";
-import { mockApi } from "./mockEngine";
+import { http } from "./http";
 import type {
 	Alarm, FeatureCollection, GeoJSONFeature, Inspection, IsolationResult,
 	LayerName, OverviewStats, ProfileResult, Sensor, TraceResult, User, WorkOrder,
 } from "../types";
 
-export type ApiMode = "online" | "demo";
-
-let mode: ApiMode = "demo";
-let wsClose: (() => void) | null = null;
-let eventCb: ((payload: any) => void) | null = null;
-let wsStatusCb: ((ok: boolean) => void) | null = null;
-
-/** 应用启动时调用：探测后端并选择模式 */
-export async function initApi(onWsStatus?: (ok: boolean) => void): Promise<ApiMode> {
-	wsStatusCb = onWsStatus || null;
-	mode = (await probeHealth()) ? "online" : "demo";
-	if (mode === "demo") {
-		mockApi.startTelemetry();
-		onWsStatus?.(true); // 演示模式视为"实时通道可用"
-	} else {
-		wsClose = connectWS(
-			(msg) => eventCb?.(msg),
-			(ok) => onWsStatus?.(ok),
-		);
-	}
-	return mode;
-}
-
-export const getMode = () => mode;
-
-/** 订阅实时事件（遥测/告警），返回取消订阅函数 */
-export function onRealtimeEvent(cb: (payload: any) => void): () => void {
-	if (mode === "demo") return mockApi.onEvent(cb);
-	eventCb = cb;
-	return () => { eventCb = null; };
-}
-
 /* ---------------- 认证 ---------------- */
 export const apiAuth = {
 	login: (username: string, password: string): Promise<{ token: string; user: User }> =>
-		mode === "online" ? http("POST", "/auth/login", { username, password }) : mockApi.login(username, password),
-	me: () => (mode === "online" ? http("GET", "/auth/me") : mockApi.me()),
-	logout: () => { if (mode === "demo") mockApi.logout(); },
+		http("POST", "/auth/login", { username, password }),
+	me: () => http("GET", "/auth/me"),
+	logout: () => {},
 };
 
 /* ---------------- 要素 ---------------- */
 export interface FeatureQuery {
 	bbox?: string; type?: string; status?: string; q?: string; page?: number; pageSize?: number;
 }
+const qs = (opts: object) =>
+	new URLSearchParams(
+		Object.entries(opts as Record<string, unknown>)
+			.filter(([, v]) => v !== undefined && v !== "")
+			.map(([k, v]) => [k, String(v)]),
+	).toString();
+
 export const apiFeatures = {
 	get: (layer: LayerName, opts: FeatureQuery = {}): Promise<FeatureCollection> =>
-		mode === "online"
-			? http("GET", `/features/${layer}?${new URLSearchParams(Object.entries(opts).filter(([, v]) => v !== undefined && v !== "").map(([k, v]) => [k, String(v)])).toString()}`)
-			: mockApi.getFeatures(layer, opts),
+		http("GET", `/features/${layer}?${qs(opts)}`),
 	create: (layer: LayerName, feature: GeoJSONFeature) =>
-		mode === "online" ? http("POST", `/features/${layer}`, feature) : mockApi.createFeature(layer, feature),
+		http("POST", `/features/${layer}`, feature),
 	update: (layer: LayerName, id: string, feature: GeoJSONFeature) =>
-		mode === "online" ? http("PUT", `/features/${layer}/${id}`, feature) : mockApi.updateFeature(layer, id, feature),
+		http("PUT", `/features/${layer}/${id}`, feature),
 	remove: (layer: LayerName, id: string) =>
-		mode === "online" ? http("DELETE", `/features/${layer}/${id}`) : mockApi.deleteFeature(layer, id),
+		http("DELETE", `/features/${layer}/${id}`),
 	search: (q: string): Promise<{ features: GeoJSONFeature[] }> =>
-		mode === "online" ? http("GET", `/features/search/all?q=${encodeURIComponent(q)}`) : mockApi.search(q),
+		http("GET", `/features/search/all?q=${encodeURIComponent(q)}`),
 };
 
 /* ---------------- 统计 ---------------- */
 export const apiOverview = {
-	stats: (): Promise<OverviewStats> => (mode === "online" ? http("GET", "/overview/stats") : mockApi.getStats()),
-	health: () => (mode === "online" ? http("GET", "/overview/health") : mockApi.health()),
+	stats: (): Promise<OverviewStats> => http("GET", "/overview/stats"),
+	health: () => http("GET", "/overview/health"),
 };
 
 /* ---------------- 告警 ---------------- */
 export const apiAlarms = {
 	get: (opts: { status?: string; level?: string; type?: string; page?: number; pageSize?: number } = {}) =>
-		mode === "online"
-			? http("GET", `/alarms?${new URLSearchParams(Object.entries(opts).filter(([, v]) => v !== undefined && v !== "").map(([k, v]) => [k, String(v)])).toString()}`)
-			: mockApi.getAlarms(opts),
+		http("GET", `/alarms?${qs(opts)}`),
 	process: (id: string, action: "accept" | "resolve", resolution?: string): Promise<{ alarm: Alarm }> =>
-		mode === "online" ? http("POST", `/alarms/${id}/process`, { action, resolution }) : mockApi.processAlarm(id, action, resolution),
+		http("POST", `/alarms/${id}/process`, { action, resolution }),
 	create: (payload: Partial<Alarm>): Promise<{ alarm: Alarm }> =>
-		mode === "online" ? http("POST", "/alarms", payload) : mockApi.createAlarm(payload),
+		http("POST", "/alarms", payload),
 };
 
 /* ---------------- 工单 ---------------- */
 export const apiWorkOrders = {
 	get: (opts: { status?: string; type?: string; page?: number; pageSize?: number } = {}) =>
-		mode === "online"
-			? http("GET", `/workorders?${new URLSearchParams(Object.entries(opts).filter(([, v]) => v !== undefined && v !== "").map(([k, v]) => [k, String(v)])).toString()}`)
-			: mockApi.getWorkOrders(opts),
+		http("GET", `/workorders?${qs(opts)}`),
 	create: (payload: Partial<WorkOrder>) =>
-		mode === "online" ? http("POST", "/workorders", payload) : mockApi.createWorkOrder(payload),
+		http("POST", "/workorders", payload),
 	update: (id: string, patch: Partial<WorkOrder> & { action?: string; result?: string }) =>
-		mode === "online" ? http("PUT", `/workorders/${id}`, patch) : mockApi.updateWorkOrder(id, patch),
+		http("PUT", `/workorders/${id}`, patch),
 };
 
 /* ---------------- 巡检 ---------------- */
 export const apiInspections = {
 	get: (opts: { status?: string; page?: number; pageSize?: number } = {}) =>
-		mode === "online"
-			? http("GET", `/inspections?${new URLSearchParams(Object.entries(opts).filter(([, v]) => v !== undefined && v !== "").map(([k, v]) => [k, String(v)])).toString()}`)
-			: mockApi.getInspections(opts),
+		http("GET", `/inspections?${qs(opts)}`),
 	getOne: (id: string): Promise<{ inspection: Inspection }> =>
-		mode === "online" ? http("GET", `/inspections/${id}`) : mockApi.getInspection(id),
+		http("GET", `/inspections/${id}`),
 	create: (payload: Partial<Inspection>) =>
-		mode === "online" ? http("POST", "/inspections", payload) : mockApi.createInspection(payload),
-	start: (id: string) => (mode === "online" ? http("POST", `/inspections/${id}/start`) : mockApi.startInspection(id)),
+		http("POST", "/inspections", payload),
+	start: (id: string) => http("POST", `/inspections/${id}/start`),
 	report: (id: string, payload: { wellId: string; status: string; issue?: string }) =>
-		mode === "online" ? http("POST", `/inspections/${id}/report`, payload) : mockApi.reportInspection(id, payload),
-	complete: (id: string) => (mode === "online" ? http("POST", `/inspections/${id}/complete`) : mockApi.completeInspection(id)),
+		http("POST", `/inspections/${id}/report`, payload),
+	complete: (id: string) => http("POST", `/inspections/${id}/complete`),
 };
 
 /* ---------------- 传感器 ---------------- */
 export const apiSensors = {
-	get: (): Promise<{ list: Sensor[] }> => (mode === "online" ? http("GET", "/sensors") : mockApi.getSensors()),
+	get: (): Promise<{ list: Sensor[] }> => http("GET", "/sensors"),
 	series: (id: string, range: string): Promise<{ sensor: Sensor; series: { value: number; ts: number }[] }> =>
-		mode === "online" ? http("GET", `/sensors/${id}/series?range=${range}`) : mockApi.getSensorSeries(id, range),
+		http("GET", `/sensors/${id}/series?range=${range}`),
 };
 
 /* ---------------- 管网分析 ---------------- */
 export const apiAnalysis = {
 	buffer: (payload: { geometry: any; radius: number; layers?: LayerName[] }) =>
-		mode === "online" ? http("POST", "/analysis/buffer", payload) : mockApi.buffer(payload),
+		http("POST", "/analysis/buffer", payload),
 	trace: (pipeId: string, direction: "upstream" | "downstream"): Promise<TraceResult> =>
-		mode === "online" ? http("POST", "/analysis/trace", { pipeId, direction }) : mockApi.trace({ pipeId, direction }),
+		http("POST", "/analysis/trace", { pipeId, direction }),
 	isolation: (pipeId: string): Promise<IsolationResult> =>
-		mode === "online" ? http("POST", "/analysis/isolation", { pipeId }) : mockApi.isolation({ pipeId }),
+		http("POST", "/analysis/isolation", { pipeId }),
 	profile: (pipeId: string): Promise<ProfileResult> =>
-		mode === "online" ? http("POST", "/analysis/profile", { pipeId }) : mockApi.profile({ pipeId }),
+		http("POST", "/analysis/profile", { pipeId }),
 };
 
 /* ---------------- 用户管理 ---------------- */
 export const apiUsers = {
-	get: (): Promise<{ list: User[] }> => (mode === "online" ? http("GET", "/users") : mockApi.getUsers()),
+	get: (): Promise<{ list: User[] }> => http("GET", "/users"),
 	create: (payload: Partial<User> & { password: string }) =>
-		mode === "online" ? http("POST", "/users", payload) : mockApi.createUser(payload),
+		http("POST", "/users", payload),
 	update: (id: string, patch: Partial<User> & { password?: string }) =>
-		mode === "online" ? http("PUT", `/users/${id}`, patch) : mockApi.updateUser(id, patch),
-	remove: (id: string) => (mode === "online" ? http("DELETE", `/users/${id}`) : mockApi.deleteUser(id)),
+		http("PUT", `/users/${id}`, patch),
+	remove: (id: string) => http("DELETE", `/users/${id}`),
 };
-
-export { mockApi };

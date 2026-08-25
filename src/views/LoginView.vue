@@ -6,10 +6,7 @@
 				<div class="brand-logo">🛰️</div>
 				<h1>SmartPipe GIS</h1>
 				<p>智慧城市地下管网管理平台</p>
-				<el-tag v-if="appStore.state.mode === 'demo'" type="warning" size="small" effect="plain">
-					<i class="el-icon-info" /> 演示模式（未连接后端，数据为浏览器内置模拟数据）
-				</el-tag>
-				<el-tag v-else type="success" size="small" effect="plain">已连接后端服务</el-tag>
+				<el-tag type="success" size="small" effect="plain">已连接后端服务</el-tag>
 			</div>
 			<el-form :model="form" @keyup.enter="doLogin">
 				<el-form-item>
@@ -46,7 +43,6 @@ import { defineComponent, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { authStore } from "../store/auth";
-import { appStore } from "../store/app";
 
 const demoAccounts = [
 	{ username: "admin", password: "admin123", role: "admin", roleLabel: "系统管理员", color: "#f5222d", desc: "全部权限 + 用户管理" },
@@ -84,7 +80,7 @@ export default defineComponent({
 			}
 		};
 
-		return { form, loading, demoAccounts, doLogin, fill, appStore };
+		return { form, loading, demoAccounts, doLogin, fill };
 	},
 });
 </script>

@@ -17,8 +17,7 @@
 			</el-menu>
 			<div class="aside-footer">
 				<div class="aside-mode">
-					<el-tag v-if="appStore.state.mode === 'demo'" size="small" type="warning" effect="dark">演示模式</el-tag>
-					<el-tag v-else size="small" type="success" effect="dark">在线模式</el-tag>
+					<el-tag size="small" type="success" effect="dark">在线模式</el-tag>
 				</div>
 			</div>
 		</aside>
@@ -76,9 +75,12 @@ export default defineComponent({
 	setup() {
 		const route = useRoute();
 		const router = useRouter();
+		let lastAlarmId = "";
 		const onAlarm = (e: Event) => {
 			const alarm = (e as CustomEvent).detail;
-			if (!alarm || !appStore.shouldNotifyAlarm(alarm)) return;
+			if (!alarm) return;
+			if (alarm.id === lastAlarmId) return; // 同一告警仅提醒一次
+			lastAlarmId = alarm.id;
 			ElNotification({
 				title: `${ALARM_LEVEL_LABELS[alarm.level] || ""}告警：${alarm.title}`,
 				message: alarm.description || alarm.source_name || "",
