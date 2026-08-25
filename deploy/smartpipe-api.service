@@ -1,0 +1,29 @@
+# ============================================================
+# SmartPipe GIS 后端服务 systemd 单元（手动部署方案）
+# 安装：
+#   sudo cp deploy/smartpipe-api.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now smartpipe-api
+# 查看日志：journalctl -u smartpipe-api -f
+# ============================================================
+[Unit]
+Description=SmartPipe GIS API Server (智慧城市地下管网管理平台后端)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/smartpipe/server
+ExecStart=/usr/bin/node /opt/smartpipe/server/src/index.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=PORT=8080
+Environment=HOST=127.0.0.1
+# 生产环境务必修改为随机长字符串
+Environment=JWT_SECRET=smartpipe-demo-secret-change-me-in-production
+# 数据目录
+Environment=DB_FILE=/opt/smartpipe/server/data/smartpipe.db
+
+[Install]
+WantedBy=multi-user.target

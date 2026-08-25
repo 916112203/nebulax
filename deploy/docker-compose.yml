@@ -1,0 +1,29 @@
+# ============================================================
+# SmartPipe GIS 一键部署编排
+# 启动：docker compose -f deploy/docker-compose.yml up -d
+# 访问：http://<虚拟机IP>:8080
+# ============================================================
+services:
+  smartpipe:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: smartpipe-gis
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - TZ=Asia/Shanghai
+      - JWT_SECRET=${JWT_SECRET:-smartpipe-demo-secret-change-me}
+      - TELEMETRY_INTERVAL=${TELEMETRY_INTERVAL:-3000}
+    volumes:
+      - smartpipe-data:/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8080/api/overview/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  smartpipe-data:

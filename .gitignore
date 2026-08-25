@@ -1,1 +1,15 @@
-node_modules
+node_modules/
+server/node_modules/
+dist/
+*.local
+.DS_Store
+
+# 运行时数据（SQLite 落盘文件，首次启动自动重建）
+server/data/smartpipe.db
+server/.env
+
+# 编辑器
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.claude/
