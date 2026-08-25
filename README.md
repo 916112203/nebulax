@@ -59,20 +59,24 @@
 ## 🚀 快速开始
 
 ```bash
-# 1. 安装前端依赖
+# 1. 安装依赖（前端 + 后端）
 npm install
+cd server && npm install && cd ..
 
 # 2. 生成模拟数据（前后端共用，固定种子可重复生成）
 npm run gen:data
 
-# 3. 启动后端（首次启动自动建库导入种子数据，含实时遥测模拟器）
-cd server && npm install && npm start
+# 3. 终端 A：启动后端（首次启动自动建库导入种子数据，含实时遥测模拟器）
+npm start
 # → API: http://localhost:8080/api
 
-# 4. 启动前端开发服务器（另开终端）
+# 4. 终端 B：启动前端开发服务器
 npm run dev
-# → http://localhost:5173 （自动探测到后端 → 在线模式）
+# → http://localhost:5173 （vite 已配置 /api 代理到 8080，自动进入在线模式）
 ```
+
+> 注意：后端与前端需分别在**两个终端**中运行（都是常驻进程）。
+> 若 8080 未启动，前端会自动回退为演示模式（浏览器内置数据），不影响浏览。
 
 **演示账号**：`admin/admin123`（管理员）· `zhangwei/zhang123`（调度员）· `lina/lina123`（巡检员）· `wangfang/wang123`（只读）
 

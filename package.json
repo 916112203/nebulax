@@ -5,11 +5,13 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
+		"start": "node server/src/index.js",
+		"server": "node server/src/index.js",
 		"build": "vite build",
 		"build:demo": "vite build --mode demo",
 		"preview": "vite preview",
 		"gen:data": "node scripts/generate-mock-data.mjs",
-		"server": "node server/src/index.js"
+		"test:e2e": "node scripts/e2e-smoke.mjs"
 	},
 	"dependencies": {
 		"@element-plus/icons-vue": "^2.3.2",
